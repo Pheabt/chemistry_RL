@@ -7,6 +7,7 @@ Description:
 '''
 
 from env import ColorChangingRL
+from env import ColorChangingNoise
 from agents import SAC
 from grader import GRADER
 import numpy as np
@@ -41,7 +42,7 @@ if args.env == 'chemistry':
     width = 5
     height = 5
     graph = args.graph + str(num_objects) # chain, full
-    env = ColorChangingRL(
+    env = ColorChangingNoise(
         test_mode=args.mode, 
         render_type='shapes', 
         num_objects=num_objects, 
