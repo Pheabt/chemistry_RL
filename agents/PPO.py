@@ -1,6 +1,6 @@
 '''
-@Author: Wenhao Ding
-@Email: wenhaod@andrew.cmu.edu
+ 
+@ 
 @Date: 2020-05-30 14:20:04
 LastEditTime: 2022-12-28 12:35:02
 @Description: 
