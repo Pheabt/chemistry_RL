@@ -436,27 +436,6 @@ class ColorChangingRL(gym.Env):
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = spaces.Box(low=0, high=1, shape=(3, 50, 50), dtype=np.float32)
         self.seed(seed)
-
-        # self.noise_object_color = np.random.randint(0, self.num_colors)
-        # while True:
-        #     noise_pos = Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height)))
-        #     if not any([obj.pos == noise_pos for obj in self.objects.values()]):
-        #         self.noise_object = Object(pos=noise_pos, color=self.noise_object_color)
-        #         break
-
-
-        vi = 2
-        self.noise_object_colors = [np.random.randint(0, self.num_colors) for _ in range(vi)]
-        self.noise_objects = []
-
-        # 为两个噪声对象设置随机位置
-        for i in range(vi):
-            while True:
-                noise_pos = Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height)))
-                if not any([obj.pos == noise_pos for obj in self.objects.values()]) and not any([n_obj.pos == noise_pos for n_obj in self.noise_objects]):
-                    self.noise_objects.append(Object(pos=noise_pos, color=self.noise_object_colors[i]))
-                    break
-
         self.reset()
 
     def seed(self, seed=None):
@@ -607,31 +586,14 @@ class ColorChangingRL(gym.Env):
                 cubes=self.render_cubes,)[self.render_type]()
         ), axis=0) 
 
-    #get the true state
-    # def get_state(self):
-    #     # use 2D grid world to represent the true state
-    #     im = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
-    #     im_target = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
-    #     for idx, obj in self.objects.items():
-    #         im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
-    #         im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
-    #     return im, im_target
+    # get the true state
     def get_state(self):
-        # 使用2D网格世界表示真实状态
+        # use 2D grid world to represent the true state
         im = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
         im_target = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
-        
-        # 将每个对象的颜色和位置表示在状态中
         for idx, obj in self.objects.items():
             im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
             im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
-        
-        # 表示噪声对象的颜色和位置
-        for noise_obj in self.noise_objects:
-            im[noise_obj.color, noise_obj.pos.x, noise_obj.pos.y] = 1
-        
-        #im[self.noise_object.color, self.noise_object.pos.x, self.noise_object.pos.y] = 1
-    
         return im, im_target
 
     def generate_masks(self):
@@ -762,7 +724,7 @@ class ColorChangingRL(gym.Env):
         else:
             # we return the target in step() instead of reset()
             state_all = self.augment_state_with_goal(state_in, state_target)
-        return state_all
+            return state_all
 
     def valid_pos(self, pos, obj_id):
         """Check if position is valid."""
