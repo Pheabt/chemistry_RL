@@ -22,7 +22,8 @@ parser.add_argument('--env', type=str, default='chemistry', help='name of enviro
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
 args = parser.parse_args()
 
-
+# args.exp_id = f"{args.mode}_{args.agent}_{args.grader_model}_m{args.env}_v{args.graph}"
+# wandb.init(project='grader', name=args.exp_id, entity="mingatum")
 
 # environment parameters
 if args.env == 'chemistry':
@@ -70,7 +71,7 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 render = False
-trails = 10
+trails = 1
 test_interval = 10
 save_interval = 10000
 
