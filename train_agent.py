@@ -1,11 +1,3 @@
-'''
-Author: Wenhao Ding
-Email: wenhaod@andrew.cmu.edu
-Date: 2021-12-21 11:57:44
-LastEditTime: 2022-12-28 13:00:17
-Description: 
-'''
-
 from env import ColorChangingRL
 from env import ColorChangingNoise
 from agents import SAC
@@ -17,8 +9,9 @@ import argparse
 import time
 import os
 np.set_printoptions(linewidth=np.inf)
+import wandb
 
-
+# parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--exp_name', type=str, required=True)
 parser.add_argument('--mode', type=str, required=True, choices=['IID', 'OOD-S'], help='IID means i.i.d. samples and OOD-S means spurious correlation')
@@ -28,6 +21,9 @@ parser.add_argument('--grader_model', type=str, default='mlp', choices=['causal'
 parser.add_argument('--env', type=str, default='chemistry', help='name of environment')
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
 args = parser.parse_args()
+
+
+wandb.init(project="grader", name=args.exp_name)
 
 # environment parameters
 if args.env == 'chemistry':
