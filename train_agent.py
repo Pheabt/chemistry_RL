@@ -23,7 +23,6 @@ parser.add_argument('--graph', type=str, default='chain', choices=['collider', '
 args = parser.parse_args()
 
 
-wandb.init(project="grader", name=args.exp_name)
 
 # environment parameters
 if args.env == 'chemistry':
