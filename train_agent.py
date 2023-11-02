@@ -43,6 +43,7 @@ if args.env == 'chemistry':
     graph = args.graph + str(num_objects) # chain, full
 
     if args.noise == 'noise':
+        print('noise')
         env = ColorChangingNoise(
             test_mode=args.mode, 
             render_type='shapes', 
@@ -52,6 +53,7 @@ if args.env == 'chemistry':
             max_steps=num_steps
         )
     elif args.noise == 'base':
+        print('base')
         env = ColorChangingRL(
             test_mode=args.mode, 
             render_type='shapes', 

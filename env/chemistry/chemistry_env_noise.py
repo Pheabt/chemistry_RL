@@ -445,7 +445,7 @@ class ColorChangingNoise(gym.Env):
         #         break
 
 
-        vi = 3
+        vi = 4
         self.noise_object_colors = [np.random.randint(0, self.num_colors) for _ in range(vi)]
         self.noise_objects = []
 
