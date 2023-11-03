@@ -11,7 +11,7 @@ import os
 np.set_printoptions(linewidth=np.inf)
 import wandb
       
-# parse arguments
+# parse arguments test
 parser = argparse.ArgumentParser()
 parser.add_argument('--exp_name', type=str, default='T')
 parser.add_argument('--mode', type=str, required=True, choices=['IID', 'OOD-S'], help='IID means i.i.d. samples and OOD-S means spurious correlation')
