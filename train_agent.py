@@ -1,6 +1,7 @@
 from env import ColorChangingRL
 from env import ColorChangingNoise
 from agents import SAC
+import matplotlib.pyplot as plt
 from grader import GRADER
 import numpy as np
 from utils import load_config
@@ -143,15 +144,36 @@ if __name__ == '__main__':
                         next_state, reward, done, info = env.step(action)
 
                         if render:
-                            env.render()
-                            time.sleep(0.05)
+                            rendered_image = env.render()
+                            if rendered_image.shape[0] == 6:
+                                # 将数组分成两个 (3, 50, 50) 的图像
+                                img1, img2 = np.split(rendered_image, 2, axis=0)
+                                
+                                # 将颜色通道移到最后一个维度
+                                img1 = np.transpose(img1, (1, 2, 0))
+                                img2 = np.transpose(img2, (1, 2, 0))
+                                
+                                # 创建一个新的图像数组来并排放置两个图像
+                                combined_image = np.concatenate((img1, img2), axis=1)
+                                
+                                # 使用 matplotlib 显示图像
+                                plt.imshow(combined_image)
+                                plt.axis('off')  # 隐藏坐标轴
+                                plt.show()
+
+
+                            print('....................render')
+                            time.sleep(1)
 
                         state = copy.deepcopy(next_state)
                         total_reward += reward
                         step_reward.append(reward)
                     test_reward_mean.append(total_reward)
+                    print('.....................test_reward_mean_1',len(test_reward_mean))
 
                 test_reward_mean = np.mean(test_reward_mean, axis=0)
+                print('....................22222222',test_reward_mean)
                 print('[{}/{}] [{}/{}] Test Reward: {}'.format(t_i, trails, e_i, episode, test_reward_mean))
                 test_reward.append(test_reward_mean)
+                print('...8888888888',test_reward)
                 np.save(os.path.join(save_path, 'tower.test.reward.'+str(t_i)+'.npy'), test_reward)

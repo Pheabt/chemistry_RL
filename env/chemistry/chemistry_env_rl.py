@@ -478,8 +478,8 @@ class ColorChangingRL(gym.Env):
     def render_circles(self):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
-            rr, cc = skimage.draw.circle(
-                obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
+            rr, cc = skimage.draw.ellipse(
+                obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
             im[rr, cc, :] = self.colors[obj.color][:3]
         return im.transpose([2, 0, 1])
 
@@ -487,7 +487,7 @@ class ColorChangingRL(gym.Env):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
             if idx == 0:
-                rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
+                rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
                 im[rr, cc, :] = self.colors[obj.color][:3]
             elif idx == 1:
                 rr, cc = triangle(obj.pos.x * 10, obj.pos.y * 10, 10, im.shape)
@@ -528,7 +528,7 @@ class ColorChangingRL(gym.Env):
     def render_circles_target(self):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
-            rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
+            rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
             im[rr, cc, :] = self.colors[torch.argmax(self.object_to_color_target[idx]).item()][:3]
         return im.transpose([2, 0, 1])
 
@@ -536,7 +536,7 @@ class ColorChangingRL(gym.Env):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
             if idx == 0:
-                rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
+                rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5,5,5, im.shape)
                 im[rr, cc, :] = self.colors[torch.argmax(self.object_to_color_target[idx]).item()][:3]
             elif idx == 1:
                 rr, cc = triangle(obj.pos.x * 10, obj.pos.y * 10, 10, im.shape)
