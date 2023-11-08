@@ -166,17 +166,17 @@ if __name__ == '__main__':
                                 plt.axis('off')  # 隐藏坐标轴
                                 plt.show()
 
-                            print('....................render')
+                            #print('....................render')
                             time.sleep(1)
 
                         state = copy.deepcopy(next_state)
                         total_reward += reward
                         step_reward.append(reward)
                     test_reward_mean.append(total_reward)
-                    print('.....................test_reward_mean_1',len(test_reward_mean))
+                    #print('.....................test_reward_mean_1',len(test_reward_mean))
 
                 test_reward_mean = np.mean(test_reward_mean, axis=0)
-                print('....................22222222',test_reward_mean)
+                #print('....................22222222',test_reward_mean)
                 print('[{}/{}] [{}/{}] Test Reward: {}'.format(t_i, trails, e_i, episode, test_reward_mean))
                 test_reward.append(test_reward_mean)
                 print('...8888888888',test_reward)
