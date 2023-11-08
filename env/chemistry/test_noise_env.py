@@ -10,16 +10,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from chemistry_env_rl import ColorChangingRL
+from chemistry_env_noise import ColorChangingNoise
 
 
 num_steps = 10
 movement = 'Static' # Dynamic, Static
 num_objects = 5
 num_colors = 2
-graph = 'chain' + str(num_objects)
+graph = 'jungle' + str(num_objects)
 
-env = ColorChangingRL(
+env = ColorChangingNoise(
     test_mode='IID', 
     render_type='shapes', 
     num_objects=num_objects, 

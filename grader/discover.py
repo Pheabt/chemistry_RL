@@ -31,12 +31,13 @@ class Discover(object):
         if self.env_name == 'chemistry':
             self.pvalue_threshold = 0.01
             self.num_objects = args['env_params']['num_objects']
+            self.noise_objects  = args['env_params']['noise_objects']
             self.num_colors = args['env_params']['num_colors']
             self.width = args['env_params']['width']
             self.height = args['env_params']['height']
             self.adjacency_matrix = args['env_params']['adjacency_matrix']
-            self.state_dim_list = [self.num_colors * self.width * self.height] * self.num_objects 
-            self.action_dim_list = [self.num_objects * self.num_colors] # action does not have causal variables
+            self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
+            self.action_dim_list = [(self.num_objects + self.noise_objects)* self.num_colors] # action does not have causal variables
             self.adj_node_num = len(self.action_dim_list) + len(self.state_dim_list) 
             self.state_dim_list = self.state_dim_list * 2 
             self.ground_truth = self.adjacency_matrix + np.eye(self.adjacency_matrix.shape[0]) # add diagonal elements
@@ -127,7 +128,7 @@ class Discover(object):
             # only change color of one object one time
             obj_id = action_check // self.num_colors
             color_id = action_check % self.num_colors 
-            state_check = state.reshape(self.num_objects, self.num_colors, self.width, self.height)
+            state_check = state.reshape(self.num_objects + self.noise_objects , self.num_colors, self.width, self.height)
             state_check = state_check.sum(3)
             state_check = state_check.sum(2)
             if state_check[obj_id][color_id] == 1: # the intervention will not have influence

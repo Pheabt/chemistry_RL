@@ -24,6 +24,9 @@ parser.add_argument('--grader_model', type=str, default='mlp', choices=['causal'
 
 parser.add_argument('--env', type=str, default='chemistry', help='name of environment')
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
+
+parser.add_argument('--noise_objects', type=int, default=0, help='number of objects that are noisy')
+
 args = parser.parse_args()
 
 # args.exp_id = f"{args.mode}_{args.agent}_{args.grader_model}_m{args.env}_v{args.graph}"
@@ -49,6 +52,7 @@ if args.env == 'chemistry':
             test_mode=args.mode, 
             render_type='shapes', 
             num_objects=num_objects, 
+            noise_objects=args.noise_objects,
             num_colors=num_colors, 
             movement=movement, 
             max_steps=num_steps
@@ -72,10 +76,11 @@ if args.env == 'chemistry':
         'action_dim': env.action_space.n,
         'num_colors': env.num_colors,
         'num_objects': env.num_objects,
+        'noise_objects': env.noise_objects,
         'width': env.width,
         'height': env.height,
-        'state_dim': env.num_colors * env.num_objects * env.width * env.height * 2,
-        'goal_dim': env.num_colors * env.num_objects * env.width * env.height,
+        'state_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height * 2,
+        'goal_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height,
         'adjacency_matrix': env.adjacency_matrix, # store the graph 
     }
     episode = 200
@@ -160,7 +165,6 @@ if __name__ == '__main__':
                                 plt.imshow(combined_image)
                                 plt.axis('off')  # 隐藏坐标轴
                                 plt.show()
-
 
                             print('....................render')
                             time.sleep(1)

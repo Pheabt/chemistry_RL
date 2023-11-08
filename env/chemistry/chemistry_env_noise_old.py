@@ -20,7 +20,7 @@ from PIL import Image
 import skimage
 import skimage.draw
 
-from .utils import get_colors_and_weights
+from utils import get_colors_and_weights
 
 
 graphs = {
@@ -357,7 +357,7 @@ class Object:
     color: int
 
 
-class ColorChangingRL(gym.Env):
+class ColorChangingNoise(gym.Env):
     """Gym environment for block pushing task."""
     def __init__(self, test_mode='IID', width=5, height=5, render_type='cubes', *, num_objects=5, num_colors=None,  movement='Dynamic', max_steps=50, seed=None):
         # np.random.seed(0)
@@ -436,6 +436,27 @@ class ColorChangingRL(gym.Env):
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = spaces.Box(low=0, high=1, shape=(3, 50, 50), dtype=np.float32)
         self.seed(seed)
+
+        # self.noise_object_color = np.random.randint(0, self.num_colors)
+        # while True:
+        #     noise_pos = Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height)))
+        #     if not any([obj.pos == noise_pos for obj in self.objects.values()]):
+        #         self.noise_object = Object(pos=noise_pos, color=self.noise_object_color)
+        #         break
+
+
+        vi = 4
+        self.noise_object_colors = [np.random.randint(0, self.num_colors) for _ in range(vi)]
+        self.noise_objects = []
+
+        # 为两个噪声对象设置随机位置
+        for i in range(vi):
+            while True:
+                noise_pos = Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height)))
+                if not any([obj.pos == noise_pos for obj in self.objects.values()]) and not any([n_obj.pos == noise_pos for n_obj in self.noise_objects]):
+                    self.noise_objects.append(Object(pos=noise_pos, color=self.noise_object_colors[i]))
+                    break
+
         self.reset()
 
     def seed(self, seed=None):
@@ -458,7 +479,7 @@ class ColorChangingRL(gym.Env):
         num_edges = np.random.randint(num_nodes, (((num_nodes) * (num_nodes - 1)) // 2) + 1)
         self.adjacency_matrix = random_dag(num_nodes, num_edges, g=g)
         self.adjacency_matrix = torch.from_numpy(self.adjacency_matrix).float()
-        print("set...........adja",self.adjacency_matrix)
+        print(self.adjacency_matrix)
         self.generate_masks()
         self.reset()
 
@@ -478,8 +499,8 @@ class ColorChangingRL(gym.Env):
     def render_circles(self):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
-            rr, cc = skimage.draw.ellipse(
-                obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
+            rr, cc = skimage.draw.circle(
+                obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
             im[rr, cc, :] = self.colors[obj.color][:3]
         return im.transpose([2, 0, 1])
 
@@ -487,7 +508,7 @@ class ColorChangingRL(gym.Env):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
             if idx == 0:
-                rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
+                rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
                 im[rr, cc, :] = self.colors[obj.color][:3]
             elif idx == 1:
                 rr, cc = triangle(obj.pos.x * 10, obj.pos.y * 10, 10, im.shape)
@@ -528,7 +549,7 @@ class ColorChangingRL(gym.Env):
     def render_circles_target(self):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
-            rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, 5, im.shape)
+            rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
             im[rr, cc, :] = self.colors[torch.argmax(self.object_to_color_target[idx]).item()][:3]
         return im.transpose([2, 0, 1])
 
@@ -536,7 +557,7 @@ class ColorChangingRL(gym.Env):
         im = np.zeros((self.width * 10, self.height * 10, 3), dtype=np.float32)
         for idx, obj in self.objects.items():
             if idx == 0:
-                rr, cc = skimage.draw.ellipse(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5,5,5, im.shape)
+                rr, cc = skimage.draw.circle(obj.pos.x * 10 + 5, obj.pos.y * 10 + 5, 5, im.shape)
                 im[rr, cc, :] = self.colors[torch.argmax(self.object_to_color_target[idx]).item()][:3]
             elif idx == 1:
                 rr, cc = triangle(obj.pos.x * 10, obj.pos.y * 10, 10, im.shape)
@@ -587,21 +608,40 @@ class ColorChangingRL(gym.Env):
         ), axis=0) 
 
     # get the true state
+    # def get_state(self):
+    #     # use 2D grid world to represent the true state
+    #     im = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
+    #     im_target = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
+    #     for idx, obj in self.objects.items():
+    #         im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
+    #         im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
+    #     return im, im_target
     def get_state(self):
-        # use 2D grid world to represent the true state
+        # 使用2D网格世界表示真实状态
         im = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
         im_target = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
+        
+        # 将每个对象的颜色和位置表示在状态中
         for idx, obj in self.objects.items():
             im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
             im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
+        
+        # # 表示噪声对象的颜色和位置
+        # for noise_obj in self.noise_objects:
+        #     im[noise_obj.color, noise_obj.pos.x, noise_obj.pos.y] = 1
+        
+        print("num_objects:", self.num_objects)
+        print("num_colors:", self.num_colors)
+        print("width:", self.width)
+        print("height:", self.height)
+        #im[self.noise_object.color, self.noise_object.pos.x, self.noise_object.pos.y] = 1
+    
         return im, im_target
 
     def generate_masks(self):
         mask = self.adjacency_matrix.unsqueeze(-1)
         mask = mask.repeat(1, 1, self.num_colors)
         self.mask = mask.view(self.adjacency_matrix.size(0), -1)
-        print("mask",self.mask.shape)
-        # print("adjacency_matrix",self.adjacency_matrix)
     
     def generate_target(self, num_steps=10):
         self.actions_to_target = []
@@ -726,7 +766,7 @@ class ColorChangingRL(gym.Env):
         else:
             # we return the target in step() instead of reset()
             state_all = self.augment_state_with_goal(state_in, state_target)
-            return state_all
+        return state_all
 
     def valid_pos(self, pos, obj_id):
         """Check if position is valid."""
