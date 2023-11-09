@@ -359,13 +359,14 @@ class Object:
 
 class ColorChangingRL(gym.Env):
     """Gym environment for block pushing task."""
-    def __init__(self, test_mode='IID', width=5, height=5, render_type='cubes', *, num_objects=5, num_colors=None,  movement='Dynamic', max_steps=50, seed=None):
+    def __init__(self, test_mode='IID', width=5, height=5, render_type='cubes', *, num_objects=5, noise_objects=0 , num_colors=None,  movement='Dynamic', max_steps=50, seed=None):
         # np.random.seed(0)
         # torch.manual_seed(0)
         self.width = width    # the width of grid world (for true state)
         self.height = height  # the height of grid world (for true state)
         self.render_type = render_type
         self.num_objects = num_objects
+        self.noise_objects = noise_objects
         self.test_mode = test_mode
         assert self.test_mode in ['IID', 'OOD-S'], 'only IID and OOD-S are supportted'
 

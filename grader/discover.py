@@ -43,6 +43,7 @@ class Discover(object):
             self.ground_truth = self.adjacency_matrix + np.eye(self.adjacency_matrix.shape[0]) # add diagonal elements
 
             # nodes (Action x1, state x20)
+            # modification=======================================================================================================================================
             if self.num_objects == 10:
                 self.next_state_offset = 11
                 self.node_name_mapping = {
@@ -54,8 +55,8 @@ class Discover(object):
                 self.next_state_offset = 6
                 self.node_name_mapping = {
                     0: 'A_i',  
-                    1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4',
-                    6: 'NS_0', 7: 'NS_1', 8: 'NS_2', 9: 'NS_3', 10: 'NS_4'
+                    1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5',
+                    7: 'NS_0', 8: 'NS_1', 9: 'NS_2', 10: 'NS_3', 11: 'NS_4', 12: 'NS_5'
                 }
 
             # remove the dimension that has no influence
@@ -220,6 +221,7 @@ class Discover(object):
         # convert the dataset dict to dataframe for discrete variables
         if self.env_name in ['chemistry']:
             data_dict = {}
+            print('keys============',self.dataset_dict.keys())
             for n_i in self.dataset_dict.keys():
                 x = copy.deepcopy(np.array(self.dataset_dict[n_i]))
                 x = np.delete(x, self.remove_list[n_i], axis=1)
@@ -330,8 +332,8 @@ class Discover(object):
         # NOTE: discovered graph contains 2*N_S+N_A nodes, we need to convert it to N_S+N_A nodes
         node_mapping = {  
             'A_i': 0,                  
-            'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5,
-            'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5,
+            'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6,
+            'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6,
         }
         adj_matrix = np.zeros((self.adj_node_num, self.adj_node_num))
         adj_matrix[0, 0] = 1

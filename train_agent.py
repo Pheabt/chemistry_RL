@@ -17,21 +17,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--exp_name', type=str, default='T')
 parser.add_argument('--mode', type=str, required=True, choices=['IID', 'OOD-S'], help='IID means i.i.d. samples and OOD-S means spurious correlation')
 
-parser.add_argument('--noise', type=str, default='noise', choices=['noise', 'base'])
-
 parser.add_argument('--agent', type=str, default='GRADER', choices=['GRADER', 'SAC'])
 parser.add_argument('--grader_model', type=str, default='mlp', choices=['causal', 'full', 'mlp', 'gnn'], help='type of model used in GRADER')
 
 parser.add_argument('--env', type=str, default='chemistry', help='name of environment')
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
 
-parser.add_argument('--noise_objects', type=int, default=0, help='number of objects that are noisy')
+parser.add_argument('--noise_objects', type=int, default=1, help='number of objects that are noisy')
 
 args = parser.parse_args()
 
 # args.exp_id = f"{args.mode}_{args.agent}_{args.grader_model}_m{args.env}_v{args.graph}"
 # wandb.init(project='grader', name=args.exp_id, entity="mingatum")
-args.exp_name = f"{args.mode}_{args.noise}_{args.agent}_{args.grader_model}_{args.env}_{args.graph}"
+args.exp_name = f"{args.mode}_{args.agent}_{args.grader_model}_{args.env}_{args.graph}_{args.noise_objects}"
 # environment parameters
 if args.env == 'chemistry':
     num_steps = 10
@@ -46,9 +44,7 @@ if args.env == 'chemistry':
     height = 5
     graph = args.graph + str(num_objects) # chain, full
 
-    if args.noise == 'noise':
-        print('noise')
-        env = ColorChangingNoise(
+    env = ColorChangingNoise(
             test_mode=args.mode, 
             render_type='shapes', 
             num_objects=num_objects, 
@@ -56,17 +52,7 @@ if args.env == 'chemistry':
             num_colors=num_colors, 
             movement=movement, 
             max_steps=num_steps
-        )
-    elif args.noise == 'base':
-        print('base')
-        env = ColorChangingRL(
-            test_mode=args.mode, 
-            render_type='shapes', 
-            num_objects=num_objects, 
-            num_colors=num_colors, 
-            movement=movement, 
-            max_steps=num_steps
-        )
+    )
 
     env.set_graph(graph)
 

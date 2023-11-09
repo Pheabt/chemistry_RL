@@ -48,13 +48,14 @@ class WorldModel(object):
             self.build_node_and_edge = self.build_node_and_edge_chemistry
             self.organize_nodes = self.organize_nodes_chemistry
             self.num_objects = args['env_params']['num_objects']
+            self.noise_objects = args['env_params']['noise_objects']
             self.num_colors = args['env_params']['num_colors']
             self.width = args['env_params']['width']
             self.height = args['env_params']['height']
             self.adjacency_matrix = args['env_params']['adjacency_matrix']
             self.adjacency_matrix += np.eye(self.adjacency_matrix.shape[0]) # add diagonal elements
-            self.state_dim_list = [self.num_colors * self.width * self.height] * self.num_objects 
-            self.action_dim_list = [self.num_objects * self.num_colors] # action does not have causal variables
+            self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
+            self.action_dim_list = [ (self.num_objects + self.noise_objects) * self.num_colors] # action does not have causal variables
         else:
             raise ValueError('Unknown environment name')
 
@@ -139,8 +140,8 @@ class WorldModel(object):
         state = data[:, 0:sum(self.state_dim_list)]
 
         # [B, N*C*W*H] -> [B, N, C*W*H]
-        state = state.reshape(batch_size, self.num_objects * self.num_colors, self.width, self.height)
-        state = state.reshape(batch_size, self.num_objects, self.num_colors * self.width * self.height)
+        state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) * self.num_colors, self.width, self.height)
+        state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) , self.num_colors * self.width * self.height)
         start_ = 0
         for s_i in range(len(self.state_dim_list)):
             end_ = self.state_dim_list[s_i] + start_
@@ -179,7 +180,7 @@ class WorldModel(object):
 
         # NOTE: since the embedding of state has beed reordered, we should do that thing again
         delta_state = torch.cat(delta_state, dim=1) # [B, N, C*W*H]
-        delta_state = delta_state.reshape(delta_state.shape[0], self.num_objects * self.num_colors * self.width * self.height)
+        delta_state = delta_state.reshape(delta_state.shape[0],  (self.num_objects + self.noise_objects) * self.num_colors * self.width * self.height)
         return delta_state
 
     def data_process(self, data, max_buffer_size):

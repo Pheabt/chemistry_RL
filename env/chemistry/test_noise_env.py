@@ -16,6 +16,7 @@ from chemistry_env_noise import ColorChangingNoise
 num_steps = 10
 movement = 'Static' # Dynamic, Static
 num_objects = 5
+noise_objects = 2
 num_colors = 2
 graph = 'jungle' + str(num_objects)
 
@@ -23,6 +24,7 @@ env = ColorChangingNoise(
     test_mode='IID', 
     render_type='shapes', 
     num_objects=num_objects, 
+    noise_objects=noise_objects,
     num_colors=num_colors, 
     movement=movement, 
     max_steps=num_steps
