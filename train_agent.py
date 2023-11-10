@@ -23,7 +23,7 @@ parser.add_argument('--grader_model', type=str, default='mlp', choices=['causal'
 parser.add_argument('--env', type=str, default='chemistry', help='name of environment')
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
 
-parser.add_argument('--noise_objects', type=int, default=1, help='number of objects that are noisy')
+parser.add_argument('--noise_objects', type=int, default=0, help='number of objects that are noisy')
 
 args = parser.parse_args()
 
@@ -80,7 +80,7 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 render = False
-trails = 1
+trails = 10
 test_interval = 10
 save_interval = 10000
 
@@ -165,5 +165,5 @@ if __name__ == '__main__':
                 #print('....................22222222',test_reward_mean)
                 print('[{}/{}] [{}/{}] Test Reward: {}'.format(t_i, trails, e_i, episode, test_reward_mean))
                 test_reward.append(test_reward_mean)
-                print('...8888888888',test_reward)
+                # print('...8888888888',test_reward)
                 np.save(os.path.join(save_path, 'tower.test.reward.'+str(t_i)+'.npy'), test_reward)

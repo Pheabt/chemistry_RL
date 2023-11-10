@@ -53,11 +53,37 @@ class Discover(object):
                 }
             elif self.num_objects == 5:
                 self.next_state_offset = 6
-                self.node_name_mapping = {
-                    0: 'A_i',  
-                    1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5',
-                    7: 'NS_0', 8: 'NS_1', 9: 'NS_2', 10: 'NS_3', 11: 'NS_4', 12: 'NS_5'
-                }
+
+                if self.noise_objects == 0:
+                    self.node_name_mapping = {
+                        0: 'A_i',  
+                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 
+                        6: 'NS_0', 7: 'NS_1', 8: 'NS_2', 9: 'NS_3', 10: 'NS_4',
+                    }
+                elif self.noise_objects == 1:
+                    self.node_name_mapping = {
+                        0: 'A_i',  
+                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5',
+                        7: 'NS_0', 8: 'NS_1', 9: 'NS_2', 10: 'NS_3', 11: 'NS_4', 12: 'NS_5',
+                    }
+                elif self.noise_objects == 2:
+                    self.node_name_mapping = {
+                        0: 'A_i',  
+                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6',
+                        8: 'NS_0', 9: 'NS_1', 10: 'NS_2', 11: 'NS_3', 12: 'NS_4', 13: 'NS_5', 14: 'NS_6',
+                    }
+                elif self.noise_objects == 3:
+                    self.node_name_mapping = {
+                        0: 'A_i',  
+                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7',
+                        9: 'NS_0', 10: 'NS_1', 11: 'NS_2', 12: 'NS_3', 13: 'NS_4', 14: 'NS_5', 15: 'NS_6', 16: 'NS_7',
+                    }
+                elif self.noise_objects == 4:
+                    self.node_name_mapping = {
+                        0: 'A_i',  
+                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7', 9: 'S_8',
+                        10: 'NS_0', 11: 'NS_1', 12: 'NS_2', 13: 'NS_3', 14: 'NS_4', 15: 'NS_5', 16: 'NS_6', 17: 'NS_7', 18: 'NS_8',
+                    }  
 
             # remove the dimension that has no influence
             self.remove_list = [[] for _ in self.node_name_mapping.keys()]
@@ -328,13 +354,41 @@ class Discover(object):
             plt.savefig(save_path, dpi=300)
             plt.close('all')
 
+    # modification=======================================================================================================================================
     def get_adj_matrix_graph(self):
         # NOTE: discovered graph contains 2*N_S+N_A nodes, we need to convert it to N_S+N_A nodes
-        node_mapping = {  
-            'A_i': 0,                  
-            'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6,
-            'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6,
-        }
+        if self.noise_objects == 0:
+            node_mapping = {  
+                'A_i': 0,                  
+                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 
+                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5,
+            }
+        elif self.noise_objects == 1:
+            node_mapping = {  
+                'A_i': 0,                  
+                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6,
+                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6,
+            }
+        elif self.noise_objects == 2:
+            node_mapping = {
+                'A_i': 0,
+                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7,
+                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7,
+            }
+        elif self.noise_objects == 3:
+            node_mapping = {
+                'A_i': 0,
+                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8,
+                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8,
+            }
+        elif self.noise_objects == 4:
+            node_mapping = {
+                'A_i': 0,
+                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8, 'S_8': 9,
+                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8, 'NS_8': 9,
+            }
+
+
         adj_matrix = np.zeros((self.adj_node_num, self.adj_node_num))
         adj_matrix[0, 0] = 1
         edges = self.causal_graph.edges
