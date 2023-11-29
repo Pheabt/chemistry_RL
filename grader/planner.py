@@ -45,6 +45,9 @@ class WorldModel(object):
 
         # process things that are different in environments
         if self.env_name == 'chemistry':
+
+            self.use_state_abstraction = args['env_params']['use_state_abstraction']
+
             self.build_node_and_edge = self.build_node_and_edge_chemistry
             self.organize_nodes = self.organize_nodes_chemistry
             self.num_objects = args['env_params']['num_objects']
@@ -52,10 +55,18 @@ class WorldModel(object):
             self.num_colors = args['env_params']['num_colors']
             self.width = args['env_params']['width']
             self.height = args['env_params']['height']
-            self.adjacency_matrix = args['env_params']['adjacency_matrix']
-            self.adjacency_matrix += np.eye(self.adjacency_matrix.shape[0]) # add diagonal elements
-            self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
-            self.action_dim_list = [ (self.num_objects + self.noise_objects) * self.num_colors] # action does not have causal variables
+            self.adjacency_matrix_original = args['env_params']['adjacency_matrix']
+            self.adjacency_matrix = self.adjacency_matrix_original + np.eye(self.adjacency_matrix_original.shape[0]) # add diagonal elements
+
+
+            if self.use_state_abstraction:
+                self.state_dim_list = [self.num_colors * self.width * self.height] * self.num_objects
+                self.action_dim_list = [ self.num_objects * self.num_colors] # action does not have causal variables
+            else:
+                self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
+                self.action_dim_list = [ (self.num_objects + self.noise_objects) * self.num_colors] # action does not have causal variables
+        
+        
         else:
             raise ValueError('Unknown environment name')
 
@@ -126,8 +137,12 @@ class WorldModel(object):
     def build_node_and_edge_chemistry(self, data):
         # create the node matrix. the last node is the output node therefore should always be 0.
         batch_size = data.shape[0]
+
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",data.shape)
+
         x = torch.zeros((batch_size, self.node_num, self.node_dim), device=torch.device(self.device)) # [B, 125]
 
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",x.shape)
         # build the nodes of action
         action = data[:, sum(self.state_dim_list):]
         start_ = 0
@@ -140,13 +155,21 @@ class WorldModel(object):
         state = data[:, 0:sum(self.state_dim_list)]
 
         # [B, N*C*W*H] -> [B, N, C*W*H]
-        state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) * self.num_colors, self.width, self.height)
-        state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) , self.num_colors * self.width * self.height)
+        if self.use_state_abstraction:
+            state = state.reshape(batch_size,  self.num_objects * self.num_colors, self.width, self.height)
+            state = state.reshape(batch_size,  self.num_objects , self.num_colors * self.width * self.height)
+        else:
+            state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) * self.num_colors, self.width, self.height)
+            state = state.reshape(batch_size,  (self.num_objects + self.noise_objects) , self.num_colors * self.width * self.height)
+            # print("!!!!!-------------------------!!!!!!!!!!!!",state.shape)
         start_ = 0
         for s_i in range(len(self.state_dim_list)):
             end_ = self.state_dim_list[s_i] + start_
             x[:, s_i+len(self.action_dim_list), 0:end_-start_] = state[:, s_i, :] # pad 0 for remaining places
             start_ = end_
+
+        # print("x.shape--------------",x.shape)
+
 
         if self.use_full:
             # full graph (states are fully connected)
@@ -166,7 +189,9 @@ class WorldModel(object):
             gt_adj[:, 0] = 1.0
             adj = gt_adj
 
+        # print("adj.shape 111--------------",adj.shape)
         adj = np.array(adj)[None, None, :, :].repeat(batch_size, axis=0)
+        # print("adj.shape--------------",adj.shape)
         adj = CUDA(torch.from_numpy(adj.astype(np.float32)))
         return x, adj
 
@@ -180,7 +205,14 @@ class WorldModel(object):
 
         # NOTE: since the embedding of state has beed reordered, we should do that thing again
         delta_state = torch.cat(delta_state, dim=1) # [B, N, C*W*H]
-        delta_state = delta_state.reshape(delta_state.shape[0],  (self.num_objects + self.noise_objects) * self.num_colors * self.width * self.height)
+        # print("delta_state.shape--------------",delta_state.shape)
+
+        if self.use_state_abstraction:
+            delta_state = delta_state.reshape(delta_state.shape[0],  self.num_objects * self.num_colors * self.width * self.height)
+        else:
+            delta_state = delta_state.reshape(delta_state.shape[0], (self.num_objects + self.noise_objects) * self.num_colors * self.width * self.height)
+        
+       
         return delta_state
 
     def data_process(self, data, max_buffer_size):
@@ -281,6 +313,9 @@ class WorldModel(object):
         if isinstance(a, np.ndarray):
             a = CUDA(torch.from_numpy(a.astype(np.float32)))
 
+        # print('=================s', s.shape)
+        # print('=================a', a.shape)
+
         inputs = torch.cat((s, a), axis=1)
 
         with torch.no_grad():
@@ -288,8 +323,13 @@ class WorldModel(object):
                 delta = self.model(inputs)
             else:
                 x, adj = self.build_node_and_edge(inputs)
+                # print('=================inputs', inputs.shape)
+                # print('=================x', x.shape)
+                # print('=================adj', adj.shape)
                 x = self.model(x, adj)
+                # print('=================x 222', x.shape)
                 delta = self.organize_nodes(x)
+                # print('=================delta', delta.shape)
 
             delta = delta.cpu().detach().numpy()
         return delta
@@ -328,6 +368,7 @@ class Planner(object):
             action = env.random_action()
         else:
             if np.random.uniform(0, 1) > self.epsilon or deterministic:
+                # print('===============qqqqqqq===state', state.shape)
                 action = self.mpc_controller.act(model=self.model, state=state)
             else:
                 action = env.random_action()
@@ -339,9 +380,34 @@ class Planner(object):
         pure_state = data[0][:len(data[0])-self.goal_dim]
         action = data[1]
         pure_next_state = data[2][:len(data[0])-self.goal_dim]
+
+        # print('pure_state', pure_state.shape)
+        # print('action', action.shape)
+        # print('pure_next_state', pure_next_state.shape)
+        # if self.model.use_state_abstraction:
+        #     pure_state, pure_next_state = self.state_abstraction(pure_state, pure_next_state, self.model.adjacency_matrix_original)
         x = np.concatenate([pure_state, action])
         label = pure_next_state - pure_state 
         self.model.data_process([x, label], self.max_buffer_size)
+
+    def state_abstraction(self, state, next_state,  adjacency_matrix):
+ 
+        if self.model.use_state_abstraction:
+            state = state.reshape(self.model.width, self.model.height, self.model.num_objects, self.model.num_colors)
+            next_state = next_state.reshape(self.model.width, self.model.height, self.model.num_objects, self.model.num_colors)
+        else:
+            state = state.reshape(self.model.width, self.model.height,(self.model.num_objects + self.model.noise_objects), self.model.num_colors)
+            next_state = next_state.reshape(self.model.width, self.model.height,(self.model.num_objects + self.model.noise_objects), self.model.num_colors)
+
+        new_adjacency_matrix = adjacency_matrix[:self.model.num_objects,:]
+
+        state_filtered = np.dot(new_adjacency_matrix, state)
+        next_state_filtered = np.dot(new_adjacency_matrix, next_state)
+
+        state_filtered = state_filtered.reshape(-1)
+        next_state_filtered = next_state_filtered.reshape(-1)
+
+        return state_filtered, next_state_filtered
 
     def train(self):
         # when data has been collected enough, train model

@@ -29,6 +29,7 @@ class Discover(object):
         self.prop_test = 0.5
 
         if self.env_name == 'chemistry':
+            self.use_state_abstraction = args['env_params']['use_state_abstraction']
             self.pvalue_threshold = 0.01
             self.num_objects = args['env_params']['num_objects']
             self.noise_objects  = args['env_params']['noise_objects']
@@ -36,8 +37,16 @@ class Discover(object):
             self.width = args['env_params']['width']
             self.height = args['env_params']['height']
             self.adjacency_matrix = args['env_params']['adjacency_matrix']
-            self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
-            self.action_dim_list = [(self.num_objects + self.noise_objects)* self.num_colors] # action does not have causal variables
+            if self.use_state_abstraction:
+                self.state_dim_list = [self.num_colors * self.width * self.height] * self.num_objects
+                self.action_dim_list = [self.num_objects * self.num_colors]
+            else:
+                self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
+                self.action_dim_list = [(self.num_objects + self.noise_objects)* self.num_colors] # action does not have causal variables
+        
+            # self.state_dim_list = [self.num_colors * self.width * self.height] * (self.num_objects + self.noise_objects)
+            # self.action_dim_list = [(self.num_objects + self.noise_objects)* self.num_colors] 
+            
             self.adj_node_num = len(self.action_dim_list) + len(self.state_dim_list) 
             self.state_dim_list = self.state_dim_list * 2 
             self.ground_truth = self.adjacency_matrix + np.eye(self.adjacency_matrix.shape[0]) # add diagonal elements
@@ -54,36 +63,45 @@ class Discover(object):
             elif self.num_objects == 5:
                 self.next_state_offset = 6
 
-                if self.noise_objects == 0:
+                if self.use_state_abstraction:
                     self.node_name_mapping = {
-                        0: 'A_i',  
-                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 
-                        6: 'NS_0', 7: 'NS_1', 8: 'NS_2', 9: 'NS_3', 10: 'NS_4',
-                    }
-                elif self.noise_objects == 1:
-                    self.node_name_mapping = {
-                        0: 'A_i',  
-                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5',
-                        7: 'NS_0', 8: 'NS_1', 9: 'NS_2', 10: 'NS_3', 11: 'NS_4', 12: 'NS_5',
-                    }
-                elif self.noise_objects == 2:
-                    self.node_name_mapping = {
-                        0: 'A_i',  
-                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6',
-                        8: 'NS_0', 9: 'NS_1', 10: 'NS_2', 11: 'NS_3', 12: 'NS_4', 13: 'NS_5', 14: 'NS_6',
-                    }
-                elif self.noise_objects == 3:
-                    self.node_name_mapping = {
-                        0: 'A_i',  
-                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7',
-                        9: 'NS_0', 10: 'NS_1', 11: 'NS_2', 12: 'NS_3', 13: 'NS_4', 14: 'NS_5', 15: 'NS_6', 16: 'NS_7',
-                    }
-                elif self.noise_objects == 4:
-                    self.node_name_mapping = {
-                        0: 'A_i',  
-                        1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7', 9: 'S_8',
-                        10: 'NS_0', 11: 'NS_1', 12: 'NS_2', 13: 'NS_3', 14: 'NS_4', 15: 'NS_5', 16: 'NS_6', 17: 'NS_7', 18: 'NS_8',
-                    }  
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 
+                            6: 'NS_0', 7: 'NS_1', 8: 'NS_2', 9: 'NS_3', 10: 'NS_4',
+                        }
+
+
+                else:
+                    if self.noise_objects == 0:
+                        self.node_name_mapping = {
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 
+                            6: 'NS_0', 7: 'NS_1', 8: 'NS_2', 9: 'NS_3', 10: 'NS_4',
+                        }
+                    elif self.noise_objects == 1:
+                        self.node_name_mapping = {
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5',
+                            7: 'NS_0', 8: 'NS_1', 9: 'NS_2', 10: 'NS_3', 11: 'NS_4', 12: 'NS_5',
+                        }
+                    elif self.noise_objects == 2:
+                        self.node_name_mapping = {
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6',
+                            8: 'NS_0', 9: 'NS_1', 10: 'NS_2', 11: 'NS_3', 12: 'NS_4', 13: 'NS_5', 14: 'NS_6',
+                        }
+                    elif self.noise_objects == 3:
+                        self.node_name_mapping = {
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7',
+                            9: 'NS_0', 10: 'NS_1', 11: 'NS_2', 12: 'NS_3', 13: 'NS_4', 14: 'NS_5', 15: 'NS_6', 16: 'NS_7',
+                        }
+                    elif self.noise_objects == 4:
+                        self.node_name_mapping = {
+                            0: 'A_i',  
+                            1: 'S_0',  2: 'S_1', 3: 'S_2', 4: 'S_3', 5: 'S_4', 6: 'S_5', 7: 'S_6', 8: 'S_7', 9: 'S_8',
+                            10: 'NS_0', 11: 'NS_1', 12: 'NS_2', 13: 'NS_3', 14: 'NS_4', 15: 'NS_5', 16: 'NS_6', 17: 'NS_7', 18: 'NS_8',
+                        }
 
             # remove the dimension that has no influence
             self.remove_list = [[] for _ in self.node_name_mapping.keys()]
@@ -127,7 +145,7 @@ class Discover(object):
     def store_transition(self, data):
         # find the height of the delta state
         def find_current_state(state):
-            state = state.reshape(self.max_height, self.color_dim+self.shape_dim)
+            state = state.reshape(self.max_height, self.color_dim+self.shape_dim)          
             # get the current height
             height = self.max_height - 1
             for h_i in range(self.max_height):
@@ -147,6 +165,14 @@ class Discover(object):
         state = data[0][:len(data[0])-self.goal_dim]
         action = data[1]
         next_state = data[2][:len(data[0])-self.goal_dim]
+
+        # print('state shape:', state.shape)
+        # print('action shape:', action.shape)
+        # print('next_state shape:', next_state.shape)
+        # print('-----------------:',  self.adjacency_matrix)
+        # if self.use_state_abstraction:
+        #     state, next_state = self.state_abstraction(state, next_state, self.adjacency_matrix)
+
         delta_state = next_state - state
 
         if self.env_name == 'chemistry':
@@ -155,7 +181,16 @@ class Discover(object):
             # only change color of one object one time
             obj_id = action_check // self.num_colors
             color_id = action_check % self.num_colors 
-            state_check = state.reshape(self.num_objects + self.noise_objects , self.num_colors, self.width, self.height)
+
+            if self.use_state_abstraction:
+                state_check = state.reshape(self.num_objects, self.num_colors, self.width, self.height)
+                # self.state_dim_list = [self.num_colors * self.width * self.height] * self.num_objects
+                # self.action_dim_list = [self.num_objects * self.num_colors] 
+
+            else:
+                state_check = state.reshape((self.num_objects + self.noise_objects), self.num_colors, self.width, self.height)
+            # modification=======================================================================================================================================
+            # state_check = state.reshape(self.num_objects, self.num_colors, self.width, self.height)
             state_check = state_check.sum(3)
             state_check = state_check.sum(2)
             if state_check[obj_id][color_id] == 1: # the intervention will not have influence
@@ -186,6 +221,25 @@ class Discover(object):
 
             self.dataset_dict[s_i+len(self.action_dim_list)].append(node_s)
             start_ = end_
+
+    def state_abstraction(self, state, next_state,  adjacency_matrix):
+
+        if self.model.use_state_abstraction:
+            state = state.reshape(self.model.width, self.model.height, self.model.num_objects, self.model.num_colors)
+            next_state = next_state.reshape(self.model.width, self.model.height, self.model.num_objects, self.model.num_colors)
+        else:
+            state = state.reshape(self.model.width, self.model.height,(self.model.num_objects + self.model.noise_objects), self.model.num_colors)
+            next_state = next_state.reshape(self.model.width, self.model.height,(self.model.num_objects + self.model.noise_objects), self.model.num_colors)
+
+        new_adjacency_matrix = adjacency_matrix[:self.num_objects,:]
+
+        state_filtered = np.dot(new_adjacency_matrix, state)
+        next_state_filtered = np.dot(new_adjacency_matrix, next_state)
+
+        state_filtered = state_filtered.reshape(-1)
+        next_state_filtered = next_state_filtered.reshape(-1)
+
+        return state_filtered, next_state_filtered
 
     def _two_variable_test(self, i, j, cond_list):
         # get x variable
@@ -250,7 +304,11 @@ class Discover(object):
             print('keys============',self.dataset_dict.keys())
             for n_i in self.dataset_dict.keys():
                 x = copy.deepcopy(np.array(self.dataset_dict[n_i]))
+                # print('self.dataset_dict[n_i] shape:',self.dataset_dict[n_i].shape)
+                print('x shape:', x.shape)
                 x = np.delete(x, self.remove_list[n_i], axis=1)
+                # x = np.delete(x, self.remove_list[n_i], axis=1)
+                print('x shape2:', x.shape)
                 name_x = self.node_name_mapping[n_i]
                 x_str = list(map(np.array2string, list(x)))
                 data_dict[name_x] = x_str
@@ -357,36 +415,43 @@ class Discover(object):
     # modification=======================================================================================================================================
     def get_adj_matrix_graph(self):
         # NOTE: discovered graph contains 2*N_S+N_A nodes, we need to convert it to N_S+N_A nodes
-        if self.noise_objects == 0:
+        if self.use_state_abstraction:
             node_mapping = {  
-                'A_i': 0,                  
-                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 
-                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5,
-            }
-        elif self.noise_objects == 1:
-            node_mapping = {  
-                'A_i': 0,                  
-                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6,
-                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6,
-            }
-        elif self.noise_objects == 2:
-            node_mapping = {
-                'A_i': 0,
-                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7,
-                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7,
-            }
-        elif self.noise_objects == 3:
-            node_mapping = {
-                'A_i': 0,
-                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8,
-                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8,
-            }
-        elif self.noise_objects == 4:
-            node_mapping = {
-                'A_i': 0,
-                'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8, 'S_8': 9,
-                'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8, 'NS_8': 9,
-            }
+                    'A_i': 0,                  
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5,
+                }
+        else:
+            if self.noise_objects == 0:
+                node_mapping = {  
+                    'A_i': 0,                  
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5,
+                }
+            elif self.noise_objects == 1:
+                node_mapping = {  
+                    'A_i': 0,                  
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6,
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6,
+                }
+            elif self.noise_objects == 2:
+                node_mapping = {
+                    'A_i': 0,
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7,
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7,
+                }
+            elif self.noise_objects == 3:
+                node_mapping = {
+                    'A_i': 0,
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8,
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8,
+                }
+            elif self.noise_objects == 4:
+                node_mapping = {
+                    'A_i': 0,
+                    'S_0': 1, 'S_1': 2, 'S_2': 3, 'S_3': 4, 'S_4': 5, 'S_5': 6, 'S_6': 7, 'S_7': 8, 'S_8': 9,
+                    'NS_0': 1, 'NS_1': 2, 'NS_2': 3, 'NS_3': 4, 'NS_4': 5, 'NS_5': 6, 'NS_6': 7, 'NS_7': 8, 'NS_8': 9,
+                }
 
 
         adj_matrix = np.zeros((self.adj_node_num, self.adj_node_num))

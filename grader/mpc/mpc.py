@@ -29,10 +29,15 @@ class MPC_Chemistry(object):
     def reset(self):
         self.optimizer.reset()
 
+
+
     def act(self, model, state):
         # process the state to get pure state and goal
+
         goal = state[len(state)-self.goal_dim:]
         pure_state = state[:len(state)-self.goal_dim] # remove the goal info at very beginning
+
+        # print(" goal==============state ", goal.shape, pure_state.shape)
 
         self.model = model
         self.state = pure_state
@@ -45,7 +50,9 @@ class MPC_Chemistry(object):
         return action
 
     def preprocess(self, state):
+        # print('=======3wrrttyg======state', state.shape)
         state = np.repeat(self.state[None], self.popsize, axis=0)
+        # print('=============state', state.shape)
         return state
 
     def cost_function(self, actions):
@@ -58,7 +65,9 @@ class MPC_Chemistry(object):
         for t_i in range(self.horizon):
             action = actions[:, t_i, :]  # (batch_size, timestep, action dim)
             # the output of the prediction model is [state_next - state]
+            
             state_next = self.model.predict(state, action) + state
+
             cost, stop_mask = self.chemistry_objective(state_next)  # compute cost
             stop_flag = stop_flag * stop_mask # Bit AND, stopped trajectory will have 0 cost
             costs += (1-stop_flag) * cost

@@ -10,13 +10,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from chemistry_env_noise import ColorChangingNoise
+from env import ColorChangingNoise
 
 
 num_steps = 10
 movement = 'Static' # Dynamic, Static
-num_objects = 5
-noise_objects = 2
+num_objects = 3
+noise_objects = 1
 num_colors = 2
 graph = 'jungle' + str(num_objects)
 

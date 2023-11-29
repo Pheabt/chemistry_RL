@@ -459,7 +459,7 @@ class ColorChangingRL(gym.Env):
         num_edges = np.random.randint(num_nodes, (((num_nodes) * (num_nodes - 1)) // 2) + 1)
         self.adjacency_matrix = random_dag(num_nodes, num_edges, g=g)
         self.adjacency_matrix = torch.from_numpy(self.adjacency_matrix).float()
-        print("set...........adja",self.adjacency_matrix)
+        # print("set...........adja",self.adjacency_matrix)
         self.generate_masks()
         self.reset()
 

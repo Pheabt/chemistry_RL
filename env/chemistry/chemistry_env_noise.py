@@ -359,7 +359,7 @@ class Object:
 
 class ColorChangingNoise(gym.Env):
     """Gym environment for block pushing task."""
-    def __init__(self, test_mode='IID', width=5, height=5, render_type='cubes', *, num_objects=5, noise_objects = 0, num_colors=None,  movement='Dynamic', max_steps=50, seed=None):
+    def __init__(self, test_mode='IID', width=5, height=5, render_type='cubes', *, num_objects=5, noise_objects = 0, num_colors=None,  use_state_abstraction = False, movement='Dynamic', max_steps=50, seed=None):
         # np.random.seed(0)
         # torch.manual_seed(0)
         self.width = width    # the width of grid world (for true state)
@@ -375,11 +375,18 @@ class ColorChangingNoise(gym.Env):
         self.use_render = False
         self.instantaneous_effect = False
         self.force_change = True
+        self.use_state_abstraction = use_state_abstraction
 
         if num_colors is None:
             num_colors = num_objects
         self.num_colors = num_colors
-        self.num_actions = (self.num_objects + self.noise_objects) * self.num_colors
+
+
+        if self.use_state_abstraction:
+            self.num_actions = self.num_objects * self.num_colors
+        else:
+            self.num_actions = (self.num_objects + self.noise_objects) * self.num_colors
+
         self.num_target_interventions = max_steps
         self.max_steps = max_steps
 
@@ -390,13 +397,17 @@ class ColorChangingNoise(gym.Env):
         print('num_colors:', self.num_colors)
         print('max_steps:', self.max_steps)
         print('test_mode:', self.test_mode)
+        print('use_state_abstraction', self.use_state_abstraction)
         
         self.mlps = []
         self.mask = None
 
         colors = ['blue', 'green', 'yellow', 'white', 'red']
         self.colors, _ = get_colors_and_weights(cmap='Set1', num_colors=self.num_colors) 
-        self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects)]
+        if self.use_state_abstraction:
+            self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects)]
+        else:
+            self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects)]
 
         self.np_random = None
         self.game = None
@@ -407,12 +418,18 @@ class ColorChangingNoise(gym.Env):
         self.adjacency_matrix = None
 
         # MLPs are used for randomlized intervention to color
-        mlp_dims = [(self.num_objects + self.noise_objects) * self.num_colors, 4 * (self.num_objects + self.noise_objects), self.num_colors]
-        self.mlps = []
-        for i in range(self.num_objects + self.noise_objects):
-            self.mlps.append(MLP(mlp_dims, force_change=self.force_change))
-
-        num_nodes = self.num_objects + self.noise_objects
+        if self.use_state_abstraction:
+            mlp_dims = [self.num_objects  * self.num_colors, 4 * self.num_objects, self.num_colors]
+            self.mlps = []
+            for i in range(self.num_objects):
+                self.mlps.append(MLP(mlp_dims, force_change=self.force_change))
+            num_nodes = self.num_objects
+        else:
+            mlp_dims = [(self.num_objects + self.noise_objects) * self.num_colors, 4 * (self.num_objects + self.noise_objects), self.num_colors]
+            self.mlps = []
+            for i in range(self.num_objects + self.noise_objects):
+                self.mlps.append(MLP(mlp_dims, force_change=self.force_change))
+            num_nodes = self.num_objects + self.noise_objects
         num_edges = np.random.randint(num_nodes, (((num_nodes) * (num_nodes - 1)) // 2) + 1)
         self.adjacency_matrix = random_dag(num_nodes, num_edges)
         self.adjacency_matrix = torch.from_numpy(self.adjacency_matrix).float()
@@ -427,13 +444,23 @@ class ColorChangingNoise(gym.Env):
         self.objects = OrderedDict()
         # Randomize object position.
         fixed_object_to_position_mapping = [(0, 0), (0, 4), (4, 0), (4, 4), (2, 2), (1,1), (1, 3), (3, 1), (3,3), (0, 2)]
-        while len(self.objects) < self.num_objects + self.noise_objects:
-            idx = len(self.objects)
-            # Re-sample to ensure objects don't fall on same spot.
-            while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
-                self.objects[idx] = Object(
-                    pos=Coord(x=fixed_object_to_position_mapping[idx][0], y=fixed_object_to_position_mapping[idx][1]),
-                    color=torch.argmax(self.object_to_color[idx]))
+
+        if self.use_state_abstraction:
+            while len(self.objects) < self.num_objects:
+                idx = len(self.objects)
+                # Re-sample to ensure objects don't fall on same spot.
+                while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
+                    self.objects[idx] = Object(
+                        pos=Coord(x=fixed_object_to_position_mapping[idx][0], y=fixed_object_to_position_mapping[idx][1]),
+                        color=torch.argmax(self.object_to_color[idx]))
+        else:
+            while len(self.objects) < self.num_objects + self.noise_objects:
+                idx = len(self.objects)
+                # Re-sample to ensure objects don't fall on same spot.
+                while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
+                    self.objects[idx] = Object(
+                        pos=Coord(x=fixed_object_to_position_mapping[idx][0], y=fixed_object_to_position_mapping[idx][1]),
+                        color=torch.argmax(self.object_to_color[idx]))
 
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = spaces.Box(low=0, high=1, shape=(3, 50, 50), dtype=np.float32)
@@ -468,8 +495,14 @@ class ColorChangingNoise(gym.Env):
     # load the graph structure and inverntion MLPs
     def load_save_information(self, save):
         self.adjacency_matrix = save['graph']
-        for i in range(self.num_objects + self.noise_objects):
-            self.mlps[i].load_state_dict(save['mlp' + str(i)])
+
+        if self.use_state_abstraction:
+            for i in range(self.num_objects):
+                self.mlps[i].load_state_dict(save['mlp' + str(i)])
+        else:
+            for i in range(self.num_objects + self.noise_objects):
+                self.mlps[i].load_state_dict(save['mlp' + str(i)])
+
         self.generate_masks()
         self.reset()
 
@@ -482,19 +515,25 @@ class ColorChangingNoise(gym.Env):
         self.adjacency_matrix = random_dag(num_nodes, num_edges, g=g)
 
         # Noise adj modification
-        new_adjacency_matrix = np.zeros((num_nodes + self.noise_objects, num_nodes + self.noise_objects))
-        new_adjacency_matrix[:num_nodes, :num_nodes] = self.adjacency_matrix
-
-        self.adjacency_matrix = torch.from_numpy(new_adjacency_matrix).float()
-        print("----------------------", self.adjacency_matrix.shape)
+        if self.use_state_abstraction:
+            self.adjacency_matrix = torch.from_numpy(self.adjacency_matrix).float()
+        else:
+            new_adjacency_matrix = np.zeros((num_nodes + self.noise_objects, num_nodes + self.noise_objects))
+            new_adjacency_matrix[:num_nodes, :num_nodes] = self.adjacency_matrix
+            self.adjacency_matrix = torch.from_numpy(new_adjacency_matrix).float()
+        # print("----------------------", self.adjacency_matrix.shape)
         self.generate_masks()
         self.reset()
 
     def get_save_information(self):
         save = {}
         save['graph'] = self.adjacency_matrix
-        for i in range(self.num_objects + self.noise_objects):
-            save['mlp' + str(i)] = self.mlps[i].state_dict()
+        if self.use_state_abstraction:
+            for i in range(self.num_objects):
+                save['mlp' + str(i)] = self.mlps[i].state_dict()
+        else:
+            for i in range(self.num_objects + self.noise_objects):
+                save['mlp' + str(i)] = self.mlps[i].state_dict()
         return save
 
     def render_grid(self):
@@ -623,29 +662,61 @@ class ColorChangingNoise(gym.Env):
     #         im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
     #         im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
     #     return im, im_target
+
     def get_state(self):
         # 使用2D网格世界表示真实状态
-        im = np.zeros(((self.num_objects + self.noise_objects) * self.num_colors, self.width, self.height), dtype=np.int32)
-        im_target = np.zeros(((self.num_objects + self.noise_objects)* self.num_colors, self.width, self.height), dtype=np.int32)
+        if self.use_state_abstraction:
+            im = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
+            im_target = np.zeros((self.num_objects * self.num_colors, self.width, self.height), dtype=np.int32)
+        else:
+            im = np.zeros(((self.num_objects + self.noise_objects) * self.num_colors, self.width, self.height), dtype=np.int32)
+            im_target = np.zeros(((self.num_objects + self.noise_objects)* self.num_colors, self.width, self.height), dtype=np.int32)
         
         # 将每个对象的颜色和位置表示在状态中
         for idx, obj in self.objects.items():
             im[idx * self.num_colors + obj.color, obj.pos.x, obj.pos.y] = 1
             im_target[idx * self.num_colors + torch.argmax(self.object_to_color_target[idx]).item(), obj.pos.x, obj.pos.y] = 1
         
+
+        
+        # print("im------------",im)
+        # print("adjacency_matrix------------",self.adjacency_matrix.shape)
+        # print("adjacency_matrix------------",self.adjacency_matrix)
+        # im ,im_target = self.state_abstraction(im, im_target, self.adjacency_matrix)
+
+        # print("im.shape------------",im.shape)
+        # print("im_target.shape------------",im_target.shape)
+
         # # 表示噪声对象的颜色和位置
         # for noise_obj in self.noise_objects:
         #     im[noise_obj.color, noise_obj.pos.x, noise_obj.pos.y] = 1
-        
-        # print("num_objects:", self.num_objects)
-        # print("noise_objects", self.noise_objects)
-        # print("num_colors:", self.num_colors)
-        # print("width:", self.width)
-        # print("height:", self.height)
+    
         #im[self.noise_object.color, self.noise_object.pos.x, self.noise_object.pos.y] = 1
     
+      
         return im, im_target
+    
+    # def state_abstraction(self, im, im_target, adjacency_matrix):
+    #     # 将 im 和 im_target 转换为2D矩阵
+    #     im_4d = im.reshape(self.width, self.height,(self.num_objects + self.noise_objects), self.num_colors)
+    #     im_target_4d = im_target.reshape(self.width, self.height,(self.num_objects + self.noise_objects), self.num_colors)
 
+    #     new_adjacency_matrix = adjacency_matrix[:self.num_objects,:]
+
+    #     # 使用邻接矩阵进行矩阵乘法
+    #     im_filtered = np.dot(new_adjacency_matrix, im_4d)
+    #     im_target_filtered = np.dot(new_adjacency_matrix, im_target_4d)
+
+    #     im_filtered = im_filtered.reshape(-1, self.num_colors, self.width, self.height)
+    #     im_target_filtered = im_target_filtered.reshape(-1, self.num_colors, self.width, self.height)
+
+    #     im_filtered = im_filtered.reshape(-1, self.width, self.height)
+    #     im_target_filtered = im_target_filtered.reshape(-1, self.width, self.height)
+
+    #     return im_filtered, im_target_filtered
+
+
+    
     def generate_masks(self):
         mask = self.adjacency_matrix.unsqueeze(-1)
         mask = mask.repeat(1, 1, self.num_colors)
@@ -655,7 +726,10 @@ class ColorChangingNoise(gym.Env):
         self.actions_to_target = []
         for i in range(num_steps):
             # randomly select the intervened object and intervened color
-            intervention_id = random.randint(0, self.num_objects + self.noise_objects - 1)
+            if self.use_state_abstraction:
+                intervention_id = random.randint(0, self.num_objects - 1)
+            else:
+                intervention_id = random.randint(0, self.num_objects + self.noise_objects - 1)
             to_color = random.randint(0, self.num_colors - 1)
             self.actions_to_target.append(intervention_id * self.num_colors + to_color)
             self.object_to_color_target[intervention_id] = torch.zeros(self.num_colors)
@@ -667,24 +741,45 @@ class ColorChangingNoise(gym.Env):
         idx: variable at which intervention is performed
         """
         reached = [idx]
-        for v in range(idx + 1, self.num_objects + self.noise_objects):
-            if do_everything or self.is_reachable(v, reached):
-                if self.instantaneous_effect:
-                    reached.append(v)
-                if self.test_mode == 'OOD-S' and self.stage == 'test':
-                    inp = self.mask[v].cpu().numpy() * np.concatenate(self.object_to_color)
-                    new_color_idx = 0
-                    for i in range(inp.shape[0]):
-                        new_color_idx += (i+1) * (inp[i] + 2)
-                    new_color_idx = int(new_color_idx) % self.num_colors
-                    self.object_to_color[v] = torch.zeros_like(self.object_to_color[v])
-                    self.object_to_color[v][new_color_idx] = 1
-                else:
-                    inp = torch.cat(self.object_to_color, dim=0).unsqueeze(0)
-                    mask = self.mask[v].unsqueeze(0)
-                    current_color = torch.argmax(self.object_to_color[v])
-                    out = self.mlps[v](inp, mask, current_color)
-                    self.object_to_color[v] = out.squeeze(0)
+        if self.use_state_abstraction:
+            for v in range(idx + 1, self.num_objects):
+                if do_everything or self.is_reachable(v, reached):
+                    if self.instantaneous_effect:
+                        reached.append(v)
+                    if self.test_mode == 'OOD-S' and self.stage == 'test':
+                        inp = self.mask[v].cpu().numpy() * np.concatenate(self.object_to_color)
+                        new_color_idx = 0
+                        for i in range(inp.shape[0]):
+                            new_color_idx += (i+1) * (inp[i] + 2)
+                        new_color_idx = int(new_color_idx) % self.num_colors
+                        self.object_to_color[v] = torch.zeros_like(self.object_to_color[v])
+                        self.object_to_color[v][new_color_idx] = 1
+                    else:
+                        inp = torch.cat(self.object_to_color, dim=0).unsqueeze(0)
+                        mask = self.mask[v].unsqueeze(0)
+                        current_color = torch.argmax(self.object_to_color[v])
+                        out = self.mlps[v](inp, mask, current_color)
+                        self.object_to_color[v] = out.squeeze(0)
+
+        else:
+            for v in range(idx + 1, self.num_objects + self.noise_objects):
+                if do_everything or self.is_reachable(v, reached):
+                    if self.instantaneous_effect:
+                        reached.append(v)
+                    if self.test_mode == 'OOD-S' and self.stage == 'test':
+                        inp = self.mask[v].cpu().numpy() * np.concatenate(self.object_to_color)
+                        new_color_idx = 0
+                        for i in range(inp.shape[0]):
+                            new_color_idx += (i+1) * (inp[i] + 2)
+                        new_color_idx = int(new_color_idx) % self.num_colors
+                        self.object_to_color[v] = torch.zeros_like(self.object_to_color[v])
+                        self.object_to_color[v][new_color_idx] = 1
+                    else:
+                        inp = torch.cat(self.object_to_color, dim=0).unsqueeze(0)
+                        mask = self.mask[v].unsqueeze(0)
+                        current_color = torch.argmax(self.object_to_color[v])
+                        out = self.mlps[v](inp, mask, current_color)
+                        self.object_to_color[v] = out.squeeze(0)
 
     def sample_variables_target(self, idx, do_everything=False):
         """
@@ -692,17 +787,31 @@ class ColorChangingNoise(gym.Env):
         """
         reached = [idx]
         # start from next object, current color will not be changed
-        for v in range(idx + 1, self.num_objects + self.noise_objects):
-            if do_everything or self.is_reachable(v, reached):
-                if self.instantaneous_effect:
-                    reached.append(v)
-                # use current color as input to get the target color
-                inp = torch.cat(self.object_to_color_target, dim=0).unsqueeze(0)
-                mask = self.mask[v].unsqueeze(0)
-                current_color = torch.argmax(self.object_to_color_target[v])
-                out = self.mlps[v](inp, mask, current_color)
-                self.object_to_color_target[v] = None
-                self.object_to_color_target[v] = out.squeeze(0)
+        if self.use_state_abstraction:
+            for v in range(idx + 1, self.num_objects):
+                if do_everything or self.is_reachable(v, reached):
+                    if self.instantaneous_effect:
+                        reached.append(v)
+                    # use current color as input to get the target color
+                    inp = torch.cat(self.object_to_color_target, dim=0).unsqueeze(0)
+                    mask = self.mask[v].unsqueeze(0)
+                    current_color = torch.argmax(self.object_to_color_target[v])
+                    out = self.mlps[v](inp, mask, current_color)
+                    self.object_to_color_target[v] = None
+                    self.object_to_color_target[v] = out.squeeze(0)
+
+        else:
+            for v in range(idx + 1, self.num_objects + self.noise_objects):
+                if do_everything or self.is_reachable(v, reached):
+                    if self.instantaneous_effect:
+                        reached.append(v)
+                    # use current color as input to get the target color
+                    inp = torch.cat(self.object_to_color_target, dim=0).unsqueeze(0)
+                    mask = self.mask[v].unsqueeze(0)
+                    current_color = torch.argmax(self.object_to_color_target[v])
+                    out = self.mlps[v](inp, mask, current_color)
+                    self.object_to_color_target[v] = None
+                    self.object_to_color_target[v] = out.squeeze(0)
 
     def check_softmax(self):
         s_ = []
@@ -727,8 +836,14 @@ class ColorChangingNoise(gym.Env):
         self.stage = stage
 
         # reset interventon color and target color
-        self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects )]
-        self.object_to_color_target = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects)]
+        if self.use_state_abstraction:
+
+            self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects)]
+            self.object_to_color_target = [torch.zeros(self.num_colors) for _ in range(self.num_objects)]
+
+        else:
+            self.object_to_color = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects )]
+            self.object_to_color_target = [torch.zeros(self.num_colors) for _ in range(self.num_objects + self.noise_objects)]
 
         # Sample color for root node randomly
         root_color = np.random.randint(0, self.num_colors)
@@ -739,13 +854,22 @@ class ColorChangingNoise(gym.Env):
         if self.movement == 'Dynamic':
             self.objects = OrderedDict()
             # Randomize object position.
-            while len(self.objects) < self.num_objects + self.noise_objects:
-                idx = len(self.objects)
-                # Re-sample to ensure objects don't fall on same spot.
-                while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
-                    self.objects[idx] = Object(
-                        pos=Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height))),
-                        color=torch.argmax(self.object_to_color[idx]))
+            if self.use_state_abstraction:
+                while len(self.objects) < self.num_objects:
+                    idx = len(self.objects)
+                    # Re-sample to ensure objects don't fall on same spot.
+                    while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
+                        self.objects[idx] = Object(
+                            pos=Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height))),
+                            color=torch.argmax(self.object_to_color[idx]))
+            else:
+                while len(self.objects) < self.num_objects + self.noise_objects:
+                    idx = len(self.objects)
+                    # Re-sample to ensure objects don't fall on same spot.
+                    while not (idx in self.objects and self.valid_pos(self.objects[idx].pos, idx)):
+                        self.objects[idx] = Object(
+                            pos=Coord(x=np.random.choice(np.arange(self.width)), y=np.random.choice(np.arange(self.height))),
+                            color=torch.argmax(self.object_to_color[idx]))
         for idx, obj in self.objects.items():
             obj.color = torch.argmax(self.object_to_color[idx])
         #self.sample_variables_target(0, do_everything = True)
@@ -765,7 +889,7 @@ class ColorChangingNoise(gym.Env):
 
         # get state
         state_in, state_target = self.get_state()
-
+    
         # get observation
         if self.use_render:
             observations = self.render()
@@ -845,9 +969,14 @@ class ColorChangingNoise(gym.Env):
 
         # goal-conditioned sparse reward
         reward = 0
-        if matches == self.num_objects + self.noise_objects:
-            reward = 1
-            done = True # early stop if we achieve the goal
+        if self.use_state_abstraction:
+            if matches == self.num_objects:
+                reward = 1
+                done = True
+        else:
+            if matches == self.num_objects + self.noise_objects:
+                reward = 1
+                done = True # early stop if we achieve the goal
 
         # get state
         state, target = self.get_state()  # input state dimension [object_num * color_num, width, height]
@@ -862,11 +991,24 @@ class ColorChangingNoise(gym.Env):
             state = self.augment_state_with_goal(state, target)
             return state, reward, done, None
 
+
+    # modification============================================================================================
+    # def augment_state_with_goal(self, state, target):
+    #     state = state.reshape(self.num_objects * self.num_colors * self.width * self.height,)
+    #     target = target.reshape(self.num_objects * self.num_colors * self.width * self.height,)
+    #     augmented_state = np.concatenate([state, target], axis=0)
+    #     return augmented_state
+    
     def augment_state_with_goal(self, state, target):
-        state = state.reshape((self.num_objects + self.noise_objects )* self.num_colors * self.width * self.height,)
-        target = target.reshape((self.num_objects+ self.noise_objects) * self.num_colors * self.width * self.height,)
+        if self.use_state_abstraction:
+            state = state.reshape(self.num_objects * self.num_colors * self.width * self.height,)
+            target = target.reshape(self.num_objects * self.num_colors * self.width * self.height,)
+        else:
+            state = state.reshape((self.num_objects + self.noise_objects )* self.num_colors * self.width * self.height,)
+            target = target.reshape((self.num_objects+ self.noise_objects) * self.num_colors * self.width * self.height,)
         augmented_state = np.concatenate([state, target], axis=0)
         return augmented_state
+
 
     def sample_step(self, action: int):
         obj_id = action // self.num_colors
@@ -888,7 +1030,10 @@ class ColorChangingNoise(gym.Env):
         state_obs = state_obs[:3, :, :]
         if self.cur_step >= self.max_steps:
             done = True
-        reward = matches / (self.num_objects + self.noise_objects)
+        if self.use_state_abstraction:
+            reward = matches / (self.num_objects)
+        else:
+            reward = matches / (self.num_objects + self.noise_objects)
         self.cur_step += 1
         return reward, state_obs
 

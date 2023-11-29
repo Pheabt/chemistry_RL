@@ -23,7 +23,9 @@ parser.add_argument('--grader_model', type=str, default='mlp', choices=['causal'
 parser.add_argument('--env', type=str, default='chemistry', help='name of environment')
 parser.add_argument('--graph', type=str, default='chain', choices=['collider', 'chain', 'full', 'jungle'], help='type of groundtruth graph in chemistry')
 
-parser.add_argument('--noise_objects', type=int, default=0, help='number of objects that are noisy')
+parser.add_argument('--noise_objects', type=int, default=2, help='number of objects that are noisy')
+
+parser.add_argument('--use_state_abstraction', action='store_true', help='whether to use state abstraction')
 
 args = parser.parse_args()
 
@@ -49,6 +51,7 @@ if args.env == 'chemistry':
             render_type='shapes', 
             num_objects=num_objects, 
             noise_objects=args.noise_objects,
+            use_state_abstraction = args.use_state_abstraction,
             num_colors=num_colors, 
             movement=movement, 
             max_steps=num_steps
@@ -58,24 +61,41 @@ if args.env == 'chemistry':
 
     config = load_config(config_path="config/chemistry_config.yaml")
     agent_config = config[args.agent]
-    env_params = {
-        'action_dim': env.action_space.n,
-        'num_colors': env.num_colors,
-        'num_objects': env.num_objects,
-        'noise_objects': env.noise_objects,
-        'width': env.width,
-        'height': env.height,
-        'state_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height * 2,
-        'goal_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height,
-        'adjacency_matrix': env.adjacency_matrix, # store the graph 
-    }
+    if args.use_state_abstraction:
+        env_params = {
+            'action_dim': env.action_space.n,
+            'num_colors': env.num_colors,
+            'num_objects': env.num_objects,
+            'noise_objects': env.noise_objects,
+            'width': env.width,
+            'height': env.height,
+            'state_dim': env.num_colors * env.num_objects * env.width * env.height * 2,
+            'goal_dim': env.num_colors * env.num_objects * env.width * env.height,
+            'adjacency_matrix': env.adjacency_matrix, # store the graph 
+            'use_state_abstraction': env.use_state_abstraction
+        }
+
+    else:
+        env_params = {
+            'action_dim': env.action_space.n,
+            'num_colors': env.num_colors,
+            'num_objects': env.num_objects,
+            'noise_objects': env.noise_objects,
+            'width': env.width,
+            'height': env.height,
+            'state_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height * 2,
+            'goal_dim': env.num_colors * (env.num_objects + env.noise_objects) * env.width * env.height,
+            'adjacency_matrix': env.adjacency_matrix, # store the graph 
+            'use_state_abstraction': env.use_state_abstraction
+        }
     episode = 200
     test_episode = 100
 else:
     raise ValueError('Wrong environment name')
 env_params['env_name'] = args.env
 agent_config['env_params'] = env_params
-save_path = os.path.join('./log', args.exp_name)
+save_path = os.path.join('./log/ours', args.exp_name)
+# save_path = os.path.join('./log', args.exp_name)
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
@@ -99,6 +119,8 @@ if __name__ == '__main__':
         train_reward = []
         for e_i in range(episode):
             state = env.reset(stage='train')
+
+            # print('....................state',state.shape)
             done = False
             one_train_reward = 0
             while not done:
